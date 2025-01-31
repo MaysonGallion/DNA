@@ -3,13 +3,178 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DNA Main Page</title>
+    <title>3D DNA Model</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
   </head>
   <body>
-    <h1>Welcome to the DNA Project</h1>
-    <div id="dna-3d-container">
-      <!-- Здесь фронтендер будет встраивать 3D-графику -->
-    </div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Сцена, камера, рендерер
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // Динамический фон с ограничением цветов
+      let time = 0;
+      function createDynamicGradient() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext("2d");
+
+        const gradient = ctx.createLinearGradient(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        gradient.addColorStop(0, `hsl(${((time * 40) % 60) + 240}, 50%, 25%)`); // Синий оттенок
+        gradient.addColorStop(1, `hsl(${((time * 40) % 60) + 300}, 50%, 25%)`); // Фиолетовый оттенок
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        return new THREE.CanvasTexture(canvas);
+      }
+
+      function updateBackground() {
+        scene.background = createDynamicGradient();
+      }
+
+      // Световые эффекты
+      const pointLight = new THREE.PointLight(0xffffff, 1.5);
+      pointLight.position.set(10, 20, 10);
+      pointLight.castShadow = true;
+      scene.add(pointLight);
+
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+      scene.add(ambientLight);
+
+      // ДНК структура
+      const helixGroup = new THREE.Group();
+
+      const colors = [0x222266, 0x662222, 0x226622, 0x442244]; // Темные тона
+      const strandRadius = 0.3;
+      const helixRadius = 2;
+      const helixHeight = 0.5;
+      const strandSegments = 100;
+
+      for (let i = 0; i < strandSegments; i++) {
+        const angle = i * (Math.PI / 8);
+        const y = i * helixHeight;
+
+        // Левый и правый шарики с эффектом свечения
+        const sphereMaterial = new THREE.MeshPhongMaterial({
+          color: colors[i % colors.length],
+          emissive: 0x000000,
+          emissiveIntensity: 0.2,
+        });
+        const sphereLeft = new THREE.Mesh(
+          new THREE.SphereGeometry(strandRadius, 16, 16),
+          sphereMaterial
+        );
+        const sphereRight = new THREE.Mesh(
+          new THREE.SphereGeometry(strandRadius, 16, 16),
+          sphereMaterial
+        );
+
+        sphereLeft.position.set(
+          3 + Math.sin(angle) * helixRadius,
+          y,
+          Math.cos(angle) * helixRadius
+        );
+        sphereRight.position.set(
+          3 + Math.sin(angle + Math.PI) * helixRadius,
+          y,
+          Math.cos(angle + Math.PI) * helixRadius
+        );
+
+        sphereLeft.castShadow = true;
+        sphereRight.castShadow = true;
+
+        helixGroup.add(sphereLeft);
+        helixGroup.add(sphereRight);
+      }
+
+      scene.add(helixGroup);
+
+      // Платформа
+      const platformGeometry = new THREE.CylinderGeometry(3, 3, 0.5, 32);
+      const platformMaterial = new THREE.MeshPhongMaterial({
+        color: 0x222222,
+        emissive: 0x004488,
+        emissiveIntensity: 0.8,
+      });
+      const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+      platform.position.set(3, -2, 0);
+      platform.receiveShadow = true;
+      scene.add(platform);
+
+      // Кольцо света над платформой
+      const ringGeometry = new THREE.RingGeometry(3.2, 3.5, 64);
+      const ringMaterial = new THREE.MeshBasicMaterial({
+        color: 0x004488,
+        side: THREE.DoubleSide,
+      });
+      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(3, -1.75, 0);
+      scene.add(ring);
+
+      // Свет от платформы
+      const platformLight = new THREE.PointLight(0x004488, 2, 15);
+      platformLight.position.set(3, 0, 0);
+      scene.add(platformLight);
+
+      // Тень от ДНК
+      const shadowPlaneGeometry = new THREE.PlaneGeometry(100, 100);
+      const shadowPlaneMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
+      const shadowPlane = new THREE.Mesh(
+        shadowPlaneGeometry,
+        shadowPlaneMaterial
+      );
+      shadowPlane.rotation.x = -Math.PI / 2;
+      shadowPlane.position.y = -5;
+      shadowPlane.receiveShadow = true;
+      scene.add(shadowPlane);
+
+      // Камера
+      camera.position.set(10, (strandSegments * helixHeight) / 4, 20);
+      camera.lookAt(3, (strandSegments * helixHeight) / 4, 0);
+
+      // Анимация
+      function animate() {
+        requestAnimationFrame(animate);
+        helixGroup.rotation.y += 0.01;
+        time += 0.01;
+        updateBackground();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      // Адаптация размера окна
+      window.addEventListener("resize", () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      });
+    </script>
   </body>
 </html>
