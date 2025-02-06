@@ -1,8 +1,14 @@
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import NotFound
 from .models import Partner
 from .serializers import PartnerSerializer
+
+
+class PartnerPagination(PageNumberPagination):
+    page_size = 10
 
 
 class PartnerListView(APIView):
@@ -17,3 +23,8 @@ class PartnerDetailView(APIView):
         partner = get_object_or_404(Partner, slug=slug)
         serializer = PartnerSerializer(partner)
         return Response(serializer.data)
+
+    def handle_exception(self, exc):
+        if isinstance(exc, Partner.DoesNotExist):
+            raise NotFound(detail="Партнер не найден.")
+        return super().handle_exception(exc)
