@@ -7,6 +7,8 @@ class Partner(models.Model):
     description = models.TextField(blank=True, null=True)  # Описание
     slug = models.SlugField(unique=True, blank=True)  # Слаг для ссылки
     link = models.URLField(blank=True, null=True)  # Полный URL для страницы партнера
+    image = models.ImageField(upload_to='partners/images/', blank=True, null=True)
+    video = models.FileField(upload_to='partners/videos/', blank=True, null=True)
     active = models.BooleanField(default=True)  # Активность записи
 
     def save(self, *args, **kwargs):
